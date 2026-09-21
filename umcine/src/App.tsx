@@ -1,11 +1,34 @@
-export default function App() {
-  const movieTitle = "오디세이";
-  const genre = "모험";
-
+function Header() {
   return (
-    <article className="movie-card">
-      <h1>{movieTitle}</h1>
-      <p>장르: {genre}</p>
+    <header>
+        <h1>영화 목록</h1>
+    </header>
+  )
+}
+
+function MovieCard() {
+  return (
+    <article>
+      <h2>오디세이</h2>
+      <p>2026.08.05</p>
     </article>
+  )
+}
+
+function MovieList() {
+  return (
+    <section>
+      <MovieCard />
+      <MovieCard />
+    </section>
+  );
+}
+
+export default function App() {
+  return (
+    <main>
+      <Header />
+      <MovieList />
+    </main>
   );
 }
