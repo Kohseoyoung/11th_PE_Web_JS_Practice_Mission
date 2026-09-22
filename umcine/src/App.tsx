@@ -1,34 +1,25 @@
-function Header() {
-  return (
-    <header>
-        <h1>영화 목록</h1>
-    </header>
-  )
+interface MovieCardProps {
+  title: string;
+  releaseDate: string;
+  isBookmarked: boolean;
 }
 
-function MovieCard() {
+function MovieCard({ title, releaseDate, isBookmarked }: MovieCardProps) {
   return (
     <article>
-      <h2>오디세이</h2>
-      <p>2026.08.05</p>
+      <h2>{title}</h2>
+      <p>{releaseDate}</p>
+      <p>{isBookmarked ? "북마크됨" : "북마크 안 됨"}</p>
     </article>
-  )
-}
-
-function MovieList() {
-  return (
-    <section>
-      <MovieCard />
-      <MovieCard />
-    </section>
   );
 }
 
 export default function App() {
   return (
     <main>
-      <Header />
-      <MovieList />
+      <MovieCard title="오디세이" releaseDate="2026.08.05" isBookmarked={true} />
+      <MovieCard title="토이 스토리 5" releaseDate="2026.06.17" isBookmarked={false} />
+      <MovieCard title="인터스텔라" releaseDate="2014.11.06" isBookmarked={true} />
     </main>
   );
 }
