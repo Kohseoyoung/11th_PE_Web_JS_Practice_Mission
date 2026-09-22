@@ -1,64 +1,26 @@
-import { useState } from "react";
+import { createContext, useContext, useState } from "react";
 
-interface Movie {
-  id: number;
-  title: string;
-  releaseDate: string;
-  isBookmarked: boolean;
-}
+type StudyMode = "focus" | "break";
 
-interface MovieCardProps {
-  movie: Movie;
-  onToggleBookmark: (movieId: number) => void;
-}
+const StudyModeContext = createContext<StudyMode>("focus");
 
-const initialMovies: Movie[] = [
-  { id: 1, title: "오디세이", releaseDate: "2026.08.05", isBookmarked: true },
-  { id: 2, title: "토이 스토리 5", releaseDate: "2026.06.17", isBookmarked: false },
-];
+function StudyModeStatus() {
+  const mode = useContext(StudyModeContext);
 
-function MovieCard({ movie, onToggleBookmark }: MovieCardProps) {
-  return (
-    <li>
-      <span>
-        {movie.title} ({movie.releaseDate})
-      </span>
-      <button
-        type="button"
-        aria-pressed={movie.isBookmarked}
-        onClick={() => onToggleBookmark(movie.id)}
-      >
-        {movie.isBookmarked ? "북마크 해제" : "북마크 추가"}
-      </button>
-    </li>
-  );
+  return <p>현재 모드: {mode === "focus" ? "집중" : "휴식"}</p>;
 }
 
 export default function App() {
-  const [movies, setMovies] = useState(initialMovies);
+  const [mode, setMode] = useState<StudyMode>("focus");
 
-  function handleToggleBookmark(movieId: number) {
-    setMovies((currentMovies) =>
-      currentMovies.map((movie) =>
-        movie.id === movieId
-          ? { ...movie, isBookmarked: !movie.isBookmarked }
-          : movie,
-      ),
-    );
+  function handleToggleMode() {
+    setMode((currentMode) => (currentMode === "focus" ? "break" : "focus"));
   }
 
   return (
-    <main>
-      <h1>영화 목록</h1>
-      <ul>
-        {movies.map((movie) => (
-          <MovieCard
-            key={movie.id}
-            movie={movie}
-            onToggleBookmark={handleToggleBookmark}
-          />
-        ))}
-      </ul>
-    </main>
+    <StudyModeContext value={mode}>
+      <StudyModeStatus />
+      <button onClick={handleToggleMode}>모드 바꾸기</button>
+    </StudyModeContext>
   );
 }
