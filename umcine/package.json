@@ -12,6 +12,7 @@
   "dependencies": {
     "@tanstack/react-router": "^1.170.40",
     "clsx": "^2.1.1",
+    "ky": "^2.2.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "tailwind-merge": "^3.7.0",

@@ -1,14 +1,20 @@
-import type { Movie } from "../../types/movie";
+import type { TmdbMovieListItem } from "../../api/movies/models";
 import { Link } from "@tanstack/react-router";
 import { cn } from "../../utils/cn";
+import { getTmdbPosterUrl } from "../../utils/movies/tmdb-image";
 
 interface MovieCardProps {
-  movie: Movie;
+  movie: TmdbMovieListItem;
+  isBookmarked: boolean;
   onToggleBookmark: (movieId: number) => void;
 }
 
-export default function MovieCard({ movie, onToggleBookmark }: MovieCardProps) {
-  const { isBookmarked } = movie;
+export default function MovieCard({
+  movie,
+  isBookmarked,
+  onToggleBookmark,
+}: MovieCardProps) {
+  const posterUrl = getTmdbPosterUrl(movie.poster_path);
 
   return (
     <article>
@@ -18,11 +24,17 @@ export default function MovieCard({ movie, onToggleBookmark }: MovieCardProps) {
           to="/movies/$movieId"
           params={{ movieId: String(movie.id) }}
         >
-          <img
-            className="size-full object-cover"
-            src={movie.posterPath}
-            alt={`${movie.title} 포스터`}
-          />
+          {posterUrl ? (
+            <img
+              className="size-full object-cover"
+              src={posterUrl}
+              alt={`${movie.title} 포스터`}
+            />
+          ) : (
+            <div className="grid size-full place-items-center bg-gray-200 text-sm text-gray-500">
+              이미지 없음
+            </div>
+          )}
         </Link>
         <button
           type="button"
@@ -48,7 +60,9 @@ export default function MovieCard({ movie, onToggleBookmark }: MovieCardProps) {
           {movie.title}
         </Link>
       </h3>
-      <p className="mt-0.5 text-xs text-gray-400">{movie.releaseDate}</p>
+      <p className="mt-0.5 text-xs text-gray-400">
+        {movie.release_date.replace(/-/g, ".")}
+      </p>
     </article>
   );
 }
