@@ -3,13 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 import { getMovies } from "../../api/movies/get-movies";
 import MovieGrid from "../../components/movies/movie-grid";
 import Pagination from "../../components/movies/pagination";
-import { useBookmarkStore } from "../../stores/bookmark-store";
+import { useFavoriteMovies } from "@/hooks/use-favorite";
 
 export function MovieListPage() {
-  const bookmarkedMovieIds = useBookmarkStore(
-    (state) => state.bookmarkedMovieIds,
-  );
-  const toggleBookmark = useBookmarkStore((state) => state.toggleBookmark);
+  // [8주차 변경] 로컬 bookmark-store → 서버 즐겨찾기 API
+  const { favoriteMovieIds, toggleFavorite } = useFavoriteMovies();
 
   const [page, setPage] = useState(1);
 
@@ -38,8 +36,8 @@ export function MovieListPage() {
       ) : (
         <MovieGrid
           movies={movies}
-          bookmarkedMovieIds={bookmarkedMovieIds}
-          onToggleBookmark={toggleBookmark}
+          bookmarkedMovieIds={favoriteMovieIds}
+          onToggleBookmark={toggleFavorite}
         />
       )}
 

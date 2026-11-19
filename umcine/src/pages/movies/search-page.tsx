@@ -2,7 +2,7 @@ import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useState, type SubmitEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { searchMovies } from "../../api/movies/search-movies";
-import { useBookmarkStore } from "../../stores/bookmark-store";
+import { useFavoriteMovies } from "@/hooks/use-favorite";
 import { cn } from "../../utils/cn";
 import { getTmdbPosterUrl } from "../../utils/movies/tmdb-image";
 
@@ -13,10 +13,8 @@ export function SearchPage() {
   const navigate = useNavigate({ from: "/search" });
   const [searchText, setSearchText] = useState(query ?? "");
 
-  const bookmarkedMovieIds = useBookmarkStore(
-    (state) => state.bookmarkedMovieIds,
-  );
-  const toggleBookmark = useBookmarkStore((state) => state.toggleBookmark);
+  // [8주차 변경] 로컬 bookmark-store → 서버 즐겨찾기 API
+  const { favoriteMovieIds, toggleFavorite } = useFavoriteMovies();
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -126,7 +124,7 @@ export function SearchPage() {
       {searchQuery.isSuccess && movies.length > 0 && (
         <ul className="mt-4 grid grid-cols-1 gap-x-10 md:grid-cols-2">
           {movies.map((movie) => {
-            const isBookmarked = bookmarkedMovieIds.includes(movie.id);
+            const isFavorite = favoriteMovieIds.includes(movie.id);
             const posterUrl = getTmdbPosterUrl(movie.poster_path);
 
             return (
@@ -164,23 +162,23 @@ export function SearchPage() {
                     </Link>
                     <button
                       type="button"
-                      onClick={() => toggleBookmark(movie.id)}
-                      aria-pressed={isBookmarked}
+                      onClick={() => toggleFavorite(movie.id)}
+                      aria-pressed={isFavorite}
                       className={cn(
                         "inline-flex h-8 items-center gap-1.5 rounded-md border border-blue-600 px-3 text-xs font-semibold",
-                        isBookmarked
+                        isFavorite
                           ? "bg-blue-600 text-white"
                           : "bg-white text-blue-600",
                       )}
                     >
                       <img
-                        className={cn(isBookmarked && "brightness-0 invert")}
+                        className={cn(isFavorite && "brightness-0 invert")}
                         src="/icons/bookmark-outline.svg"
                         alt=""
                         width={12}
                         height={12}
                       />
-                      {isBookmarked ? "북마크 해제" : "북마크"}
+                      {isFavorite ? "즐겨찾기 해제" : "즐겨찾기"}
                     </button>
                   </div>
                 </div>

@@ -1,7 +1,8 @@
 import { Link, useParams } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { getMovieDetail } from "../../api/movies/get-movie-detail";
-import { useBookmarkStore } from "../../stores/bookmark-store";
+import { FavoriteButton } from "@/components/movies/favorite-button";
+import { MyRatingPanel } from "@/components/movies/my-rating-panel";
 import { cn } from "../../utils/cn";
 import { getMovieDetailErrorMessage } from "../../utils/movies/get-movie-detail-error-message";
 import {
@@ -32,13 +33,7 @@ export function MovieDetailPage() {
     staleTime: 30 * 1000, // 전역 기본값(1분) 대신 이 쿼리만 30초
   });
 
-  // 훅은 early return보다 위에 있어야 해요.
-  const isBookmarked = useBookmarkStore((state) =>
-    state.bookmarkedMovieIds.includes(movieId),
-  );
-  const toggleBookmark = useBookmarkStore((state) => state.toggleBookmark);
-
-  // 잘못된 번호에서도 isPending이 참이므로 가장 먼저 확인해요.
+  // 잘못된 번호에서도 isPending이 참이므로 가장 먼저 확인
   if (!isValidMovieId) {
     return (
       <main className={cn("py-6", pageX)}>올바르지 않은 영화 번호예요.</main>
@@ -139,58 +134,12 @@ export function MovieDetailPage() {
           <p className="text-[13px] leading-relaxed text-gray-500">
             {movie.overview}
           </p>
-          <button
-            type="button"
-            onClick={() => toggleBookmark(movie.id)}
-            aria-pressed={isBookmarked}
-            className={cn(
-              "inline-flex h-8 items-center gap-1.5 rounded-md border border-blue-600 px-3 text-xs font-semibold",
-              isBookmarked
-                ? "bg-blue-600 text-white"
-                : "bg-white text-blue-600",
-            )}
-          >
-            <img
-              className={cn(isBookmarked && "brightness-0 invert")}
-              src="/icons/bookmark-outline.svg"
-              alt=""
-              width={12}
-              height={12}
-            />
-            {isBookmarked ? "북마크 해제" : "북마크"}
-          </button>
+          {/* [8주차 변경] 로컬 북마크 → 서버 즐겨찾기 API */}
+          <FavoriteButton movieId={movie.id} />
         </section>
 
-        {/* 평점 패널: 폭 360, 왼쪽 선 1 + 패딩 30 → 내용 폭 329, 요소 간격 8 */}
-        <aside className="flex w-[360px] shrink-0 flex-col gap-2 border-l border-gray-200 pb-[41px] pl-[30px]">
-          <h2 className="text-base font-bold">내 평점</h2>
-          <p className="text-[11px] leading-3.5 text-gray-400">
-            별점은 필수, 후기는 선택이에요.
-          </p>
-          <div className="flex h-[38px] items-center gap-1" aria-hidden="true">
-            {[1, 2, 3, 4, 5].map((star) => (
-              <span
-                key={star}
-                className="flex size-[38px] items-center justify-center rounded-lg border border-gray-200 bg-white"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="#4b5563">
-                  <path d="M12 2l3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1L12 2z" />
-                </svg>
-              </span>
-            ))}
-          </div>
-          <textarea
-            className="h-[102px] w-full resize-none rounded-md border border-gray-200 bg-white px-3 pt-4 pb-[18px] text-xs"
-            placeholder="영화를 보고 느낀 점을 남겨보세요."
-            aria-label="평점 후기"
-          />
-          <button
-            type="button"
-            className="h-[42px] w-full rounded-md bg-gray-900 px-4 text-xs font-semibold text-white"
-          >
-            평점 저장
-          </button>
-        </aside>
+        {/* [8주차 변경] 평점 패널: 내 평점 조회·등록·수정·삭제 */}
+        <MyRatingPanel movieId={movie.id} />
       </div>
     </main>
   );

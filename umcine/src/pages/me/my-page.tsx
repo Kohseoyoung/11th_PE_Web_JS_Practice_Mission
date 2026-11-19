@@ -1,19 +1,59 @@
+import { useState } from "react";
 import { Link } from "@tanstack/react-router";
+import { useQueries, useQuery } from "@tanstack/react-query";
+import { getMe } from "@/api/members/me";
+import { getFavorites } from "@/api/favorites/favorites";
+import { getMovieDetail } from "@/api/movies/get-movie-detail";
+import Pagination from "@/components/movies/pagination";
+import { favoriteKeys } from "@/hooks/use-favorite";
+import { useAuthStore } from "@/stores/auth-store";
+import { getTmdbPosterUrl } from "@/utils/movies/tmdb-image";
 
-// 8주차에서 GET /members/me 응답으로 교체
-const MOCK_ME = {
-  nickname: "영화광",
-  email: "movie@umc.com",
-};
-
-// 즐겨찾기 가짜 데이터 (bookmark-store로 교체 가능)
-const MOCK_FAVORITES = [
-  { id: 1, title: "스파이더맨: 브랜드 뉴 데이", releaseDate: "2026.07.29" },
-  { id: 2, title: "오디세이", releaseDate: "2026.08.05" },
-  { id: 3, title: "미니언즈 & 몬스터즈", releaseDate: "2026.07.15" },
-];
+const PAGE_SIZE = 12;
 
 export function MyPage() {
+  const accessToken = useAuthStore((state) => state.accessToken);
+
+  // [8주차 변경] MOCK_ME → GET /members/me (헤더·수정 페이지와 같은 캐시)
+  const meQuery = useQuery({
+    queryKey: ["members", "me"],
+    queryFn: getMe,
+    enabled: Boolean(accessToken),
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+
+  // [8주차 변경] MOCK_FAVORITES → GET /favorites
+  // 상세 페이지에서 즐겨찾기를 바꾸면 이 key가 무효화돼 다시 조회
+  const favoritesQuery = useQuery({
+    queryKey: favoriteKeys.list,
+    queryFn: getFavorites,
+    enabled: Boolean(accessToken),
+    retry: false,
+  });
+
+  const favorites = favoritesQuery.data ?? [];
+
+  // 서버가 목록을 한 번에 주므로 페이지는 화면에서 나눔
+  const [page, setPage] = useState(0);
+  const totalPages = Math.max(Math.ceil(favorites.length / PAGE_SIZE), 1);
+  // 해제로 목록이 줄어 현재 페이지가 비면 마지막 페이지로
+  const currentPage = Math.min(page, totalPages - 1);
+  const pageFavorites = favorites.slice(
+    currentPage * PAGE_SIZE,
+    (currentPage + 1) * PAGE_SIZE,
+  );
+
+  // 즐겨찾기에는 영화 ID만 있어서, 제목·포스터는 TMDB 상세로 가져옴
+  // 상세 페이지와 같은 query key라 이미 본 영화는 캐시를 그대로 씀
+  const movieQueries = useQueries({
+    queries: pageFavorites.map((favorite) => ({
+      queryKey: ["movies", "detail", favorite.movieId],
+      queryFn: () => getMovieDetail(favorite.movieId),
+      staleTime: 30 * 1000,
+    })),
+  });
+
   return (
     <main className="bg-gray-50">
       <div className="mx-auto flex w-full max-w-[1280px] flex-col px-6 py-8">
@@ -36,11 +76,15 @@ export function MyPage() {
             <div className="grid flex-1 grid-cols-2">
               <div className="flex flex-col gap-1">
                 <span className="text-xs text-gray-400">닉네임</span>
-                <span className="text-sm font-semibold">{MOCK_ME.nickname}</span>
+                <span className="text-sm font-semibold">
+                  {meQuery.data?.nickname ?? "-"}
+                </span>
               </div>
               <div className="flex flex-col gap-1">
                 <span className="text-xs text-gray-400">이메일</span>
-                <span className="text-sm font-semibold">{MOCK_ME.email}</span>
+                <span className="text-sm font-semibold">
+                  {meQuery.data?.email ?? "-"}
+                </span>
               </div>
             </div>
           </div>
@@ -48,25 +92,68 @@ export function MyPage() {
 
         {/* 내 즐겨찾기 */}
         <section className="flex flex-col gap-4 py-6">
-          <h2 className="text-sm font-semibold">내 즐겨찾기</h2>
-          <ul className="flex flex-wrap gap-4">
-            {MOCK_FAVORITES.map((movie) => (
-              <li key={movie.id} className="flex w-[180px] flex-col gap-2">
-                <div className="aspect-[3/4] w-full rounded-lg bg-gray-200" />
-                <p className="text-sm font-semibold">{movie.title}</p>
-                <p className="text-xs text-gray-400">{movie.releaseDate}</p>
-              </li>
-            ))}
-          </ul>
+          <h2 className="text-sm font-semibold">
+            내 즐겨찾기
+            {favorites.length > 0 && (
+              <span className="ml-1 text-gray-400">{favorites.length}</span>
+            )}
+          </h2>
 
-          {/* 페이지네이션 */}
-          <div className="flex justify-center gap-2 pt-4">
-            <button type="button" disabled className="px-2 text-gray-300">‹</button>
-            <button type="button" className="h-7 w-7 rounded bg-gray-900 text-xs font-semibold text-white">
-              1
-            </button>
-            <button type="button" disabled className="px-2 text-gray-300">›</button>
-          </div>
+          {favoritesQuery.isLoading ? (
+            <p className="py-10 text-center text-sm text-gray-400">
+              불러오는 중이에요.
+            </p>
+          ) : favoritesQuery.isError ? (
+            <p className="py-10 text-center text-sm text-red-500">
+              즐겨찾기를 불러오지 못했어요.
+            </p>
+          ) : favorites.length === 0 ? (
+            <p className="py-10 text-center text-sm text-gray-400">
+              아직 즐겨찾기한 영화가 없어요.
+            </p>
+          ) : (
+            <ul className="grid grid-cols-6 gap-4">
+              {pageFavorites.map((favorite, index) => {
+                const movie = movieQueries[index]?.data;
+                const posterUrl = movie ? getTmdbPosterUrl(movie.poster_path) : null;
+
+                return (
+                  <li key={favorite.favoriteId}>
+                    <Link
+                      to="/movies/$movieId"
+                      params={{ movieId: String(favorite.movieId) }}
+                      className="flex flex-col gap-2"
+                    >
+                      {posterUrl ? (
+                        <img
+                          src={posterUrl}
+                          alt={`${movie?.title} 포스터`}
+                          className="aspect-[2/3] w-full rounded-lg object-cover"
+                        />
+                      ) : (
+                        <div className="aspect-[2/3] w-full animate-pulse rounded-lg bg-gray-200" />
+                      )}
+                      <p className="truncate text-sm font-semibold">
+                        {movie?.title ?? "불러오는 중"}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        {movie?.release_date.replace(/-/g, ".") ?? ""}
+                      </p>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
+          {/* 페이지네이션: 영화 목록과 같은 컴포넌트 사용 (1부터 시작하는 번호로 변환) */}
+          {favorites.length > 0 && (
+            <Pagination
+              page={currentPage + 1}
+              totalPages={totalPages}
+              onPageChange={(nextPage) => setPage(nextPage - 1)}
+            />
+          )}
         </section>
       </div>
     </main>
