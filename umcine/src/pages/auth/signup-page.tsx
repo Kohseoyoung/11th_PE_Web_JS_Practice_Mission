@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type SubmitEvent } from "react";
 import { Link } from "@tanstack/react-router";
 import { checkEmailDuplicate } from "@/api/members/check-email-duplicate";
 import { checkNicknameDuplicate } from "@/api/members/check-nickname-duplicate";
@@ -39,6 +39,10 @@ export function SignupPage() {
   // 회원가입 요청 상태는 useMutation이 관리
   const signupMutation = useSignupMutation();
 
+  // [리뷰 반영] 요청 중이거나 이미 가입에 성공했으면 폼 전체를 잠금
+  // 전송한 값과 화면의 값이 달라지거나, 같은 계정으로 다시 가입 요청을 보내는 것을 막음
+  const isLocked = signupMutation.isPending || signupMutation.isSuccess;
+
   // 입력값의 유효성 검사
   const isEmailValid = EMAIL_REGEX.test(form.email.trim());
   const isNicknameValid =
@@ -66,6 +70,9 @@ export function SignupPage() {
 
   // 이메일·닉네임을 바꾸면 중복 확인을 다시 해야 함
   const handleChangeField = (key: DefaultFormKey, value: DefaultFormValue) => {
+    // [리뷰 반영] 요청 중이거나 가입 완료 후에는 입력값을 바꿀 수 없음
+    if (isLocked) return;
+
     if (key === "email" || key === "nickname") {
       if (duplicateCheck[key].isChecking) return;
       setDuplicateCheck((prev) => ({ ...prev, [key]: DEFAULT_DUPLICATE_CHECK }));
@@ -76,7 +83,7 @@ export function SignupPage() {
   // 중복 확인 요청
   const handleCheckDuplicate = async (key: DuplicateCheckKey) => {
     const isValid = key === "email" ? isEmailValid : isNicknameValid;
-    if (!isValid || duplicateCheck[key].isChecking) return;
+    if (!isValid || duplicateCheck[key].isChecking || isLocked) return;
 
     const label = key === "email" ? "이메일" : "닉네임";
     setDuplicateCheck((prev) => ({
@@ -115,10 +122,11 @@ export function SignupPage() {
 
   // 회원가입 요청
   // 성공·실패 처리는 useSignupMutation의 onSuccess·onError에서 담당
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  // (성공하면 /login으로 이동)
+  const handleSubmit = (e: SubmitEvent<HTMLFormElement>) => {
     // 폼 제출 시 페이지 새로고침 방지
     e.preventDefault();
-    if (!canSubmit || signupMutation.isPending) return;
+    if (!canSubmit || isLocked) return;
 
     signupMutation.mutate({
       email: form.email.trim(),
@@ -149,12 +157,12 @@ export function SignupPage() {
               placeholder="name@example.com"
               value={form.email}
               onChange={(e) => handleChangeField("email", e.target.value)}
-              disabled={duplicateCheck.email.isChecking}
-              className="flex-1 py-3 text-sm outline-none disabled:bg-white"
+              disabled={duplicateCheck.email.isChecking || isLocked}
+              className="flex-1 py-3 text-sm outline-none disabled:bg-white disabled:text-gray-400"
             />
             <button
               type="button"
-              disabled={!isEmailValid || duplicateCheck.email.isChecking}
+              disabled={!isEmailValid || duplicateCheck.email.isChecking || isLocked}
               onClick={() => handleCheckDuplicate("email")}
               className="shrink-0 text-xs font-semibold text-blue-600 disabled:text-gray-300"
             >
@@ -180,12 +188,14 @@ export function SignupPage() {
               placeholder="2~12자"
               value={form.nickname}
               onChange={(e) => handleChangeField("nickname", e.target.value)}
-              disabled={duplicateCheck.nickname.isChecking}
-              className="flex-1 py-3 text-sm outline-none disabled:bg-white"
+              disabled={duplicateCheck.nickname.isChecking || isLocked}
+              className="flex-1 py-3 text-sm outline-none disabled:bg-white disabled:text-gray-400"
             />
             <button
               type="button"
-              disabled={!isNicknameValid || duplicateCheck.nickname.isChecking}
+              disabled={
+                !isNicknameValid || duplicateCheck.nickname.isChecking || isLocked
+              }
               onClick={() => handleCheckDuplicate("nickname")}
               className="shrink-0 text-xs font-semibold text-blue-600 disabled:text-gray-300"
             >
@@ -210,7 +220,8 @@ export function SignupPage() {
             placeholder="8자 이상"
             value={form.password}
             onChange={(e) => handleChangeField("password", e.target.value)}
-            className="rounded-lg border border-gray-200 bg-white px-3 py-3 text-sm outline-none focus:border-blue-600"
+            disabled={isLocked}
+            className="rounded-lg border border-gray-200 bg-white px-3 py-3 text-sm outline-none focus:border-blue-600 disabled:text-gray-400"
           />
           <p
             className={`text-xs ${showPasswordError ? "text-red-500" : "text-gray-400"}`}
@@ -233,25 +244,29 @@ export function SignupPage() {
             onChange={(e) =>
               handleChangeField("passwordConfirm", e.target.value)
             }
-            className="rounded-lg border border-gray-200 bg-white px-3 py-3 text-sm outline-none focus:border-blue-600"
+            disabled={isLocked}
+            className="rounded-lg border border-gray-200 bg-white px-3 py-3 text-sm outline-none focus:border-blue-600 disabled:text-gray-400"
           />
           {showPasswordConfirmError && (
             <p className="text-xs text-red-500">비밀번호가 일치하지 않아요.</p>
           )}
         </div>
 
-        {/* 요청 중에는 비활성화하고 문구 변경 */}
+        {/* 요청 중이거나 가입 완료 후에는 비활성화하고 문구 변경 */}
         <button
           type="submit"
-          disabled={!canSubmit || signupMutation.isPending}
+          disabled={!canSubmit || isLocked}
           className="rounded-lg bg-blue-600 py-3 text-sm font-semibold text-white disabled:bg-gray-300"
         >
-          {signupMutation.isPending ? "가입 중" : "가입하기"}
+          {signupMutation.isPending
+            ? "가입 중"
+            : signupMutation.isSuccess
+              ? "가입 완료"
+              : "가입하기"}
         </button>
 
         <p className="text-center text-xs text-gray-500">
           이미 계정이 있나요?{" "}
-          {/* /login 라우트가 생겨서 a → Link로 변경 */}
           <Link to="/login" className="font-semibold text-blue-600">
             로그인
           </Link>

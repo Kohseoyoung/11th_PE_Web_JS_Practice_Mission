@@ -55,13 +55,14 @@ export function Header() {
         </nav>
       </div>
       <div className="flex items-center gap-3">
-        <button
-          type="button"
+        {/* [리뷰 반영] button → Link, /search로 연결 */}
+        <Link
+          to="/search"
           className="grid size-9 place-items-center rounded-lg bg-gray-100"
           aria-label="검색"
         >
           <img src="/icons/search.svg" alt="" width={20} height={20} />
-        </button>
+        </Link>
         {/* [8주차 변경] 로그인 전: 로그인 / 첫 조회 중: 로딩 / 로그인 후: 마이페이지 */}
         {!accessToken ? (
           <Link
