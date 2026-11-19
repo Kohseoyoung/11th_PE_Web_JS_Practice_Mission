@@ -1,21 +1,73 @@
 import { useState } from "react";
-
-// 8주차에서 GET /members/me 응답으로 교체
-const MOCK_ME = {
-  nickname: "영화광",
-  email: "movie@umc.com",
-};
+import { useQuery } from "@tanstack/react-query";
+import { getMe } from "@/api/members/me";
+import { checkNicknameDuplicate } from "@/api/members/check-nickname-duplicate";
+import { useUpdateMeMutation } from "@/hooks/use-update-me-mutation";
 
 export function MyEditPage() {
-  const [nickname, setNickname] = useState(MOCK_ME.nickname);
+  // [8주차 변경] MOCK_ME → GET /members/me
+  // 헤더와 같은 query key라 캐시를 함께 쓰고, 수정 후 setQueryData 결과도 바로 반영돼요.
+  const meQuery = useQuery({
+    queryKey: ["members", "me"],
+    queryFn: getMe,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+
+  // 사용자가 입력하기 전(null)에는 서버의 닉네임을 보여 줌
+  const [nicknameInput, setNicknameInput] = useState<string | null>(null);
+  const nickname = nicknameInput ?? meQuery.data?.nickname ?? "";
 
   const isNicknameValid =
     nickname.trim().length >= 2 && nickname.trim().length <= 12;
   const showNicknameError = nickname.length > 0 && !isNicknameValid;
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  // 중복 확인 상태: 닉네임을 바꾸면 다시 확인해야 함
+  const [isChecking, setIsChecking] = useState(false);
+  const [isAvailable, setIsAvailable] = useState(false);
+  // 현재 닉네임과 같으면 중복 확인할 필요 없음
+  const isUnchanged = nickname.trim() === meQuery.data?.nickname;
+
+  const handleChangeNickname = (value: string) => {
+    if (isChecking) return;
+    setIsAvailable(false);
+    setNicknameInput(value);
+  };
+
+  const handleCheckDuplicate = async () => {
+    if (!isNicknameValid || isUnchanged || isChecking) return;
+
+    setIsChecking(true);
+    try {
+      const response = await checkNicknameDuplicate(nickname.trim());
+      setIsAvailable(response.available);
+      alert(
+        response.available
+          ? "사용할 수 있는 닉네임이에요."
+          : "이미 사용 중인 닉네임이에요.",
+      );
+    } catch {
+      setIsAvailable(false);
+      alert("중복 확인에 실패했어요. 다시 시도해 주세요.");
+    } finally {
+      setIsChecking(false);
+    }
+  };
+
+  // [8주차 추가] PATCH /members/me
+  const updateMeMutation = useUpdateMeMutation();
+  // 형식이 맞고, 기존 닉네임과 다르고, 중복 확인을 통과해야 저장 가능
+  const canSubmit =
+    isNicknameValid &&
+    !isUnchanged &&
+    isAvailable &&
+    !updateMeMutation.isPending;
+
+  const handleSubmit = (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // 8주차에서 PATCH /members/me 연결
+    if (!canSubmit) return;
+
+    updateMeMutation.mutate({ nickname: nickname.trim() });
   };
 
   return (
@@ -35,10 +87,10 @@ export function MyEditPage() {
           </div>
           <button
             type="submit"
-            disabled={!isNicknameValid}
+            disabled={!canSubmit}
             className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:bg-gray-300"
           >
-            변경사항 저장
+            {updateMeMutation.isPending ? "저장 중" : "변경사항 저장"}
           </button>
         </div>
 
@@ -78,15 +130,17 @@ export function MyEditPage() {
                   id="nickname"
                   type="text"
                   value={nickname}
-                  onChange={(e) => setNickname(e.target.value)}
-                  className="flex-1 py-3 text-sm outline-none"
+                  onChange={(e) => handleChangeNickname(e.target.value)}
+                  disabled={meQuery.isLoading || isChecking}
+                  className="flex-1 py-3 text-sm outline-none disabled:bg-white"
                 />
                 <button
                   type="button"
-                  disabled={!isNicknameValid}
+                  disabled={!isNicknameValid || isUnchanged || isChecking}
+                  onClick={handleCheckDuplicate}
                   className="shrink-0 text-xs font-semibold text-blue-600 disabled:text-gray-300"
                 >
-                  중복 확인
+                  {isChecking ? "확인 중" : isAvailable ? "확인 완료" : "중복 확인"}
                 </button>
               </div>
               {showNicknameError && (
@@ -103,7 +157,7 @@ export function MyEditPage() {
               <input
                 id="email"
                 type="email"
-                value={MOCK_ME.email}
+                value={meQuery.data?.email ?? ""}
                 readOnly
                 className="rounded-lg border border-gray-200 bg-white px-3 py-3 text-sm text-gray-700 outline-none"
               />

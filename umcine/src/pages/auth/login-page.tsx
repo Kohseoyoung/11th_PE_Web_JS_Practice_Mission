@@ -1,14 +1,26 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
+import { useLoginMutation } from "@/hooks/use-login-mutation";
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function LoginPage() {
   const [form, setForm] = useState({ email: "", password: "" });
 
-  const canSubmit = form.email.trim().length > 0 && form.password.length > 0;
+  // [8주차 추가] 로그인 요청 상태와 성공·실패 처리는 useLoginMutation이 담당
+  const loginMutation = useLoginMutation();
+  // [8주차 변경] 이메일 형식까지 검사
+  const canSubmit =
+    EMAIL_REGEX.test(form.email.trim()) && form.password.length > 0;
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // 8주차에서 로그인 API 연결
+    if (!canSubmit || loginMutation.isPending) return;
+
+    loginMutation.mutate({
+      email: form.email.trim(),
+      password: form.password,
+    });
   };
 
   return (
@@ -32,7 +44,9 @@ export function LoginPage() {
               type="email"
               placeholder="name@example.com"
               value={form.email}
-              onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, email: e.target.value }))
+              }
               className="flex-1 py-3 text-sm outline-none"
             />
           </div>
@@ -50,18 +64,21 @@ export function LoginPage() {
               type="password"
               placeholder="비밀번호"
               value={form.password}
-              onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, password: e.target.value }))
+              }
               className="flex-1 py-3 text-sm outline-none"
             />
           </div>
         </div>
 
+        {/* [8주차 변경] 요청 중에는 비활성화하고 문구 변경 */}
         <button
           type="submit"
-          disabled={!canSubmit}
+          disabled={!canSubmit || loginMutation.isPending}
           className="rounded-lg bg-blue-600 py-3 text-sm font-semibold text-white disabled:bg-gray-300"
         >
-          로그인
+          {loginMutation.isPending ? "로그인 중" : "로그인"}
         </button>
 
         <p className="text-center text-xs text-gray-500">
@@ -77,7 +94,15 @@ export function LoginPage() {
 
 function MailIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      className="text-gray-400"
+    >
       <rect x="3" y="5" width="18" height="14" rx="2" />
       <path d="m3 7 9 6 9-6" />
     </svg>
@@ -86,7 +111,15 @@ function MailIcon() {
 
 function LockIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      className="text-gray-400"
+    >
       <rect x="4" y="11" width="16" height="10" rx="2" />
       <path d="M8 11V7a4 4 0 0 1 8 0v4" />
     </svg>
