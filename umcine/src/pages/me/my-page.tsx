@@ -1,37 +1,21 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { useQueries, useQuery } from "@tanstack/react-query";
-import { getMe } from "@/api/members/me";
-import { getFavorites } from "@/api/favorites/favorites";
+import { useQueries } from "@tanstack/react-query";
 import { getMovieDetail } from "@/api/movies/get-movie-detail";
 import Pagination from "@/components/movies/pagination";
-import { favoriteKeys } from "@/hooks/use-favorite";
-import { useAuthStore } from "@/stores/auth-store";
+import { useFavoritesQuery } from "@/hooks/use-favorite";
+import { useMeQuery } from "@/hooks/use-me-query";
 import { getTmdbPosterUrl } from "@/utils/movies/tmdb-image";
 
 const PAGE_SIZE = 12;
 
 export function MyPage() {
-  const accessToken = useAuthStore((state) => state.accessToken);
-
   // [8주차 변경] MOCK_ME → GET /members/me (헤더·수정 페이지와 같은 캐시)
-  const meQuery = useQuery({
-    queryKey: ["members", "me"],
-    queryFn: getMe,
-    enabled: Boolean(accessToken),
-    staleTime: 5 * 60 * 1000,
-    retry: false,
-  });
+  const meQuery = useMeQuery();
 
   // [8주차 변경] MOCK_FAVORITES → GET /favorites
   // 상세 페이지에서 즐겨찾기를 바꾸면 이 key가 무효화돼 다시 조회
-  const favoritesQuery = useQuery({
-    queryKey: favoriteKeys.list,
-    queryFn: getFavorites,
-    enabled: Boolean(accessToken),
-    retry: false,
-  });
-
+  const favoritesQuery = useFavoritesQuery();
   const favorites = favoritesQuery.data ?? [];
 
   // 서버가 목록을 한 번에 주므로 페이지는 화면에서 나눔
@@ -104,9 +88,16 @@ export function MyPage() {
               불러오는 중이에요.
             </p>
           ) : favoritesQuery.isError ? (
-            <p className="py-10 text-center text-sm text-red-500">
-              즐겨찾기를 불러오지 못했어요.
-            </p>
+            <div className="flex flex-col items-center gap-2 py-10">
+              <p className="text-sm text-red-500">즐겨찾기를 불러오지 못했어요.</p>
+              <button
+                type="button"
+                onClick={() => favoritesQuery.refetch()}
+                className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700"
+              >
+                다시 시도
+              </button>
+            </div>
           ) : favorites.length === 0 ? (
             <p className="py-10 text-center text-sm text-gray-400">
               아직 즐겨찾기한 영화가 없어요.

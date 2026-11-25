@@ -6,21 +6,19 @@ import {
   useMyRatingsQuery,
   useUpdateRatingMutation,
 } from "@/hooks/use-ratings";
-import { useAuthStore } from "@/stores/auth-store";
-import { getMemberIdFromToken } from "@/utils/auth/get-member-id";
+import { useMemberId } from "@/hooks/use-member-id";
 import { cn } from "@/utils/cn";
 
 const STARS = [1, 2, 3, 4, 5];
 
 export function MyRatingPanel({ movieId }: { movieId: number }) {
-  const accessToken = useAuthStore((state) => state.accessToken);
-  const memberId = getMemberIdFromToken(accessToken);
+  const memberId = useMemberId();
 
   // 내 평점 목록에서 이 영화의 평점을 찾음
   const ratingsQuery = useMyRatingsQuery(memberId);
   const myRating = ratingsQuery.data?.find((rating) => rating.movieId === movieId);
 
-  // 사용자가 입력하기 전(null)에는 저장된 평점을 보여줌
+  // 사용자가 입력하기 전(null)에는 저장된 평점을 보여 줌
   const [scoreInput, setScoreInput] = useState<number | null>(null);
   const [commentInput, setCommentInput] = useState<string | null>(null);
   const score = scoreInput ?? myRating?.score ?? 0;
@@ -32,9 +30,11 @@ export function MyRatingPanel({ movieId }: { movieId: number }) {
   const isPending =
     createMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
 
-  const canSubmit = score >= 1 && !isPending;
+  // [리뷰 반영] 평점 조회에 성공한 뒤에만 저장 가능
+  // 조회 중이거나 실패했을 때 저장하면, 기존 평점이 있어도 "새 등록"으로 보내게 됨
+  const canSubmit = ratingsQuery.isSuccess && score >= 1 && !isPending;
 
-  // 저장·삭제가 끝나면 입력값을 비우고 서버 값을 다시 보여줌
+  // 저장·삭제가 끝나면(재조회까지 끝난 뒤) 입력값을 비우고 서버 값을 다시 보여 줌
   const resetInputs = () => {
     setScoreInput(null);
     setCommentInput(null);
@@ -64,7 +64,7 @@ export function MyRatingPanel({ movieId }: { movieId: number }) {
     <aside className="flex w-[360px] shrink-0 flex-col gap-2 border-l border-gray-200 pb-[41px] pl-[30px]">
       <h2 className="text-base font-bold">내 평점</h2>
 
-      {!accessToken ? (
+      {memberId === null ? (
         <p className="text-xs text-gray-500">
           평점을 남기려면{" "}
           <Link to="/login" className="font-semibold text-blue-600">
@@ -72,6 +72,20 @@ export function MyRatingPanel({ movieId }: { movieId: number }) {
           </Link>
           해 주세요.
         </p>
+      ) : ratingsQuery.isLoading ? (
+        <p className="text-xs text-gray-400">내 평점을 불러오는 중이에요.</p>
+      ) : ratingsQuery.isError ? (
+        // [리뷰 반영] 조회 실패 시 재시도 UI
+        <div className="flex flex-col items-start gap-2">
+          <p className="text-xs text-red-500">내 평점을 불러오지 못했어요.</p>
+          <button
+            type="button"
+            onClick={() => ratingsQuery.refetch()}
+            className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700"
+          >
+            다시 시도
+          </button>
+        </div>
       ) : (
         <>
           <p className="text-[11px] leading-3.5 text-gray-400">

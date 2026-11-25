@@ -1,18 +1,12 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { getMe } from "@/api/members/me";
 import { checkNicknameDuplicate } from "@/api/members/check-nickname-duplicate";
+import { useMeQuery } from "@/hooks/use-me-query";
 import { useUpdateMeMutation } from "@/hooks/use-update-me-mutation";
 
 export function MyEditPage() {
-  // [8주차 변경] MOCK_ME → GET /members/me
-  // 헤더와 같은 query key라 캐시를 함께 쓰고, 수정 후 setQueryData 결과도 바로 반영돼요.
-  const meQuery = useQuery({
-    queryKey: ["members", "me"],
-    queryFn: getMe,
-    staleTime: 5 * 60 * 1000,
-    retry: false,
-  });
+  // [8주차 변경] MOCK_ME → GET /members/me (헤더·마이페이지와 같은 캐시)
+  // 수정 후 setQueryData 결과도 바로 반영됨
+  const meQuery = useMeQuery();
 
   // 사용자가 입력하기 전(null)에는 서버의 닉네임을 보여 줌
   const [nicknameInput, setNicknameInput] = useState<string | null>(null);

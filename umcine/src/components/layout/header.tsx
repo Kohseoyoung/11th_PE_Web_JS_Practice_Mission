@@ -1,6 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { getMe } from "@/api/members/me";
+import { useMeQuery } from "@/hooks/use-me-query";
 import { useAuthStore } from "@/stores/auth-store";
 
 const navLink = "text-sm text-gray-400";
@@ -12,16 +11,9 @@ export function Header() {
     select: (state) => state.location.pathname,
   });
 
-  // [8주차 추가] 토큰이 있을 때만 내 정보 조회
+  // [8주차 추가] 토큰이 있을 때만 내 정보 조회 (계정별 캐시)
   const accessToken = useAuthStore((state) => state.accessToken);
-  const meQuery = useQuery({
-    queryKey: ["members", "me"],
-    queryFn: getMe,
-    enabled: Boolean(accessToken),
-    staleTime: 5 * 60 * 1000,
-    // 401로 토큰을 지운 뒤 같은 조회를 자동 재시도하지 않도록
-    retry: false,
-  });
+  const meQuery = useMeQuery();
 
   // 목록(/)과 상세(/movies/...)에서는 "영화", 검색(/search)에서는 "검색"
   const isMoviesActive = pathname === "/" || pathname.startsWith("/movies");
@@ -55,7 +47,7 @@ export function Header() {
         </nav>
       </div>
       <div className="flex items-center gap-3">
-        {/* [리뷰 반영] button → Link, /search로 연결 */}
+        {/* [7주차 리뷰 반영] button → Link, /search로 연결 */}
         <Link
           to="/search"
           className="grid size-9 place-items-center rounded-lg bg-gray-100"
